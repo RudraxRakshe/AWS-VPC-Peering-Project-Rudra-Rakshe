@@ -1,0 +1,17 @@
+# terraform.tfvars.example
+# Copy this file to terraform.tfvars and edit the values:
+#   cp terraform.tfvars.example terraform.tfvars      (macOS / Linux / Git Bash)
+#   Copy-Item terraform.tfvars.example terraform.tfvars   (PowerShell)
+# terraform.tfvars is ignored by Git (see .gitignore), so it is never committed.
+
+# Name of an existing EC2 key pair in ap-southeast-2 (the name only, not the .pem file).
+key_name = "your-key-pair-name"
+
+# Your current public IPv4 address plus /32.
+# Find it with: (Invoke-RestMethod https://checkip.amazonaws.com).Trim()
+# On a mobile hotspot this can change; update it and run terraform apply again.
+admin_ip_cidr = "203.0.113.25/32"
+
+# Optional overrides (defaults already match the project):
+# instance_type = "t3.micro"
+# aws_region    = "ap-southeast-2"

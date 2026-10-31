@@ -1,0 +1,243 @@
+{
+  "_readme": "Sample configuration. Everything below is reproduced in the PDF exactly as written. Test results, screenshots and cleanup status are deliberately left EMPTY / 'Not Verified' - fill them in only with results you really observed, and add the matching screenshot files.",
+
+  "project": {
+    "title": "AWS VPC Peering - Project Report",
+    "name": "AWS VPC Peering",
+    "student": "Rudra Sanjay Rakshe",
+    "region": "ap-southeast-2",
+    "region_label": "Sydney",
+    "institution": "",
+    "course": "",
+    "report_date": ""
+  },
+
+  "summary": "This project connects two isolated Amazon VPCs in the ap-southeast-2 (Sydney) region using a VPC peering connection. A bastion host in the public subnet of VPC A is used to administer private instances in both VPCs.",
+
+  "objectives": [
+    "Create two isolated VPCs with non-overlapping CIDR blocks in ap-southeast-2.",
+    "Establish a VPC peering connection between VPC A and VPC B.",
+    "Configure route tables so the private subnets can reach each other over the peering connection.",
+    "Restrict access with security groups and a bastion host.",
+    "Verify connectivity with documented tests and screenshot evidence.",
+    "Clean up all resources afterwards to avoid unnecessary charges."
+  ],
+
+  "architecture": {
+    "description": "VPC A (10.10.0.0/16) contains a public subnet with a bastion host and a private subnet with the App-A instance. VPC B (10.20.0.0/16) contains a single private subnet with the App-B instance. A VPC peering connection links the two VPCs.\n\nPeering is not transitive and the CIDR blocks do not overlap. Each VPC route table needs an explicit route to the other VPC's CIDR block through the peering connection.",
+    "diagram": "assets/architecture.png",
+    "diagram_caption": "AWS VPC Peering architecture (design schematic, not evidence of deployment)",
+    "vpcs": [
+      { "name": "VPC A", "cidr": "10.10.0.0/16", "notes": "Hosts bastion and App-A" },
+      { "name": "VPC B", "cidr": "10.20.0.0/16", "notes": "Hosts App-B" }
+    ],
+    "subnets": [
+      { "name": "Public subnet A", "cidr": "10.10.1.0/24", "vpc": "VPC A", "type": "Public" },
+      { "name": "Private subnet A", "cidr": "10.10.2.0/24", "vpc": "VPC A", "type": "Private" },
+      { "name": "Private subnet B", "cidr": "10.20.1.0/24", "vpc": "VPC B", "type": "Private" }
+    ],
+    "instances": [
+      { "name": "Bastion host", "private_ip": "", "subnet": "Public subnet A", "vpc": "VPC A", "role": "SSH jump host" },
+      { "name": "App-A", "private_ip": "10.10.2.10", "subnet": "Private subnet A", "vpc": "VPC A", "role": "Application server" },
+      { "name": "App-B", "private_ip": "10.20.1.10", "subnet": "Private subnet B", "vpc": "VPC B", "role": "Application server" }
+    ]
+  },
+
+  "resources": [
+    { "category": "VPCs", "name": "VPC A", "resource_id": "", "address": "10.10.0.0/16", "details": "" },
+    { "category": "VPCs", "name": "VPC B", "resource_id": "", "address": "10.20.0.0/16", "details": "" },
+    { "category": "Subnets", "name": "Public subnet A", "resource_id": "", "address": "10.10.1.0/24", "details": "VPC A" },
+    { "category": "Subnets", "name": "Private subnet A", "resource_id": "", "address": "10.10.2.0/24", "details": "VPC A" },
+    { "category": "Subnets", "name": "Private subnet B", "resource_id": "", "address": "10.20.1.0/24", "details": "VPC B" },
+    { "category": "Gateways and peering", "name": "Internet Gateway (VPC A)", "resource_id": "", "address": "", "details": "Public subnet A internet access" },
+    { "category": "Gateways and peering", "name": "VPC peering connection", "resource_id": "", "address": "", "details": "VPC A <-> VPC B" },
+    { "category": "EC2 instances", "name": "Bastion host", "resource_id": "", "address": "", "details": "Public subnet A" },
+    { "category": "EC2 instances", "name": "App-A", "resource_id": "", "address": "10.10.2.10", "details": "Private subnet A" },
+    { "category": "EC2 instances", "name": "App-B", "resource_id": "", "address": "10.20.1.10", "details": "Private subnet B" }
+  ],
+
+  "route_tables": [
+    {
+      "name": "RT-A-Public",
+      "vpc": "VPC A",
+      "associated_subnets": ["Public subnet A"],
+      "routes": [
+        { "destination": "10.10.0.0/16", "target": "local", "notes": "" },
+        { "destination": "0.0.0.0/0", "target": "Internet Gateway", "notes": "Internet access for bastion" },
+        { "destination": "10.20.0.0/16", "target": "VPC peering connection", "notes": "Reach VPC B" }
+      ]
+    },
+    {
+      "name": "RT-A-Private",
+      "vpc": "VPC A",
+      "associated_subnets": ["Private subnet A"],
+      "routes": [
+        { "destination": "10.10.0.0/16", "target": "local", "notes": "" },
+        { "destination": "10.20.0.0/16", "target": "VPC peering connection", "notes": "Reach VPC B" }
+      ]
+    },
+    {
+      "name": "RT-B-Private",
+      "vpc": "VPC B",
+      "associated_subnets": ["Private subnet B"],
+      "routes": [
+        { "destination": "10.20.0.0/16", "target": "local", "notes": "" },
+        { "destination": "10.10.0.0/16", "target": "VPC peering connection", "notes": "Reach VPC A" }
+      ]
+    }
+  ],
+
+  "security_groups": [
+    {
+      "name": "Bastion-SG",
+      "vpc": "VPC A",
+      "attached_to": "Bastion host",
+      "inbound": [
+        { "protocol": "TCP", "port": "22", "source": "<YOUR-PUBLIC-IP>/32", "description": "SSH from administrator (replace placeholder)" }
+      ],
+      "outbound": [
+        { "protocol": "All", "port": "All", "destination": "0.0.0.0/0", "description": "Default allow all" }
+      ]
+    },
+    {
+      "name": "App-A-SG",
+      "vpc": "VPC A",
+      "attached_to": "App-A",
+      "inbound": [
+        { "protocol": "TCP", "port": "22", "source": "10.10.1.0/24", "description": "SSH from bastion subnet" },
+        { "protocol": "ICMP", "port": "All", "source": "10.20.0.0/16", "description": "Ping from VPC B" }
+      ],
+      "outbound": [
+        { "protocol": "All", "port": "All", "destination": "0.0.0.0/0", "description": "Default allow all" }
+      ]
+    },
+    {
+      "name": "App-B-SG",
+      "vpc": "VPC B",
+      "attached_to": "App-B",
+      "inbound": [
+        { "protocol": "TCP", "port": "22", "source": "10.10.1.0/24", "description": "SSH from bastion subnet via peering" },
+        { "protocol": "ICMP", "port": "All", "source": "10.10.0.0/16", "description": "Ping from VPC A" }
+      ],
+      "outbound": [
+        { "protocol": "All", "port": "All", "destination": "0.0.0.0/0", "description": "Default allow all" }
+      ]
+    }
+  ],
+
+  "nacls": [
+    { "name": "Default network ACLs", "subnet": "All subnets", "notes": "Default rules (allow all) left unchanged." }
+  ],
+
+  "tests": [
+    {
+      "id": "T1",
+      "name": "Bastion to App-A (same VPC)",
+      "source": "Bastion host",
+      "destination": "App-A (10.10.2.10)",
+      "command": "ping -c 4 10.10.2.10",
+      "expected": "0% packet loss",
+      "status": "Not Verified",
+      "observed_output": "",
+      "screenshots": [],
+      "notes": ""
+    },
+    {
+      "id": "T2",
+      "name": "Bastion to App-B (over peering)",
+      "source": "Bastion host",
+      "destination": "App-B (10.20.1.10)",
+      "command": "ping -c 4 10.20.1.10",
+      "expected": "0% packet loss",
+      "status": "Not Verified",
+      "observed_output": "",
+      "screenshots": [],
+      "notes": ""
+    },
+    {
+      "id": "T3",
+      "name": "App-A to App-B (over peering)",
+      "source": "App-A (10.10.2.10)",
+      "destination": "App-B (10.20.1.10)",
+      "command": "ping -c 4 10.20.1.10",
+      "expected": "0% packet loss",
+      "status": "Not Verified",
+      "observed_output": "",
+      "screenshots": [],
+      "notes": ""
+    },
+    {
+      "id": "T4",
+      "name": "App-B to App-A (over peering)",
+      "source": "App-B (10.20.1.10)",
+      "destination": "App-A (10.10.2.10)",
+      "command": "ping -c 4 10.10.2.10",
+      "expected": "0% packet loss",
+      "status": "Not Verified",
+      "observed_output": "",
+      "screenshots": [],
+      "notes": ""
+    },
+    {
+      "id": "T5",
+      "name": "SSH from bastion to App-B",
+      "source": "Bastion host",
+      "destination": "App-B (10.20.1.10)",
+      "command": "ssh ec2-user@10.20.1.10",
+      "expected": "SSH login succeeds",
+      "status": "Not Verified",
+      "observed_output": "",
+      "screenshots": [],
+      "notes": ""
+    }
+  ],
+
+  "screenshots": [
+    {
+      "id": "peering-active",
+      "path": "screenshots/peering_connection_active.png",
+      "caption": "VPC peering connection in the Active state",
+      "section": "architecture"
+    },
+    {
+      "id": "route-table-a-private",
+      "path": "screenshots/route_table_a_private.png",
+      "caption": "Route table RT-A-Private with route to 10.20.0.0/16",
+      "section": "routing"
+    },
+    {
+      "id": "route-table-b-private",
+      "path": "screenshots/route_table_b_private.png",
+      "caption": "Route table RT-B-Private with route to 10.10.0.0/16",
+      "section": "routing"
+    },
+    {
+      "id": "sg-app-b",
+      "path": "screenshots/sg_app_b.png",
+      "caption": "App-B security group inbound rules",
+      "section": "security"
+    },
+    {
+      "id": "ping-app-a-to-b",
+      "path": "screenshots/ping_app_a_to_b.png",
+      "caption": "Ping from App-A to App-B",
+      "section": "tests"
+    }
+  ],
+
+  "troubleshooting": [],
+
+  "lessons_learned": [],
+
+  "cleanup": {
+    "steps": [
+      { "action": "Terminate EC2 instances", "resource": "Bastion host, App-A, App-B", "status": "Not Verified", "screenshots": [] },
+      { "action": "Delete VPC peering connection", "resource": "VPC A <-> VPC B", "status": "Not Verified", "screenshots": [] },
+      { "action": "Delete custom route tables", "resource": "RT-A-Public, RT-A-Private, RT-B-Private", "status": "Not Verified", "screenshots": [] },
+      { "action": "Detach and delete Internet Gateway", "resource": "Internet Gateway (VPC A)", "status": "Not Verified", "screenshots": [] },
+      { "action": "Delete subnets", "resource": "Public subnet A, Private subnet A, Private subnet B", "status": "Not Verified", "screenshots": [] },
+      { "action": "Delete VPCs", "resource": "VPC A, VPC B", "status": "Not Verified", "screenshots": [] },
+      { "action": "Release Elastic IP addresses (if any were allocated)", "resource": "Elastic IPs", "status": "Not Verified", "screenshots": [] }
+    ]
+  }
+}

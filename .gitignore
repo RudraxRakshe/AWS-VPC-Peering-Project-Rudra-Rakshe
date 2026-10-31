@@ -1,0 +1,22 @@
+# Terraform working files and state (state can contain sensitive data)
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfplan
+tfplan
+
+# Your personal values (the .example file IS committed)
+terraform.tfvars
+*.auto.tfvars
+
+# Never commit private keys or credentials
+*.pem
+*.key
+.env
+
+# NOTE: .terraform.lock.hcl is intentionally NOT ignored. Commit it so everyone
+# uses the same provider version.
+
+*.lnk
